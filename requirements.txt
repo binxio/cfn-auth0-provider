@@ -1,0 +1,5 @@
+cfn_resource_provider>=0.8.7
+cryptography
+requests
+boto3
+pyasn1

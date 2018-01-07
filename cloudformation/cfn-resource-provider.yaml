@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Auth0 Custom CloudFormation Provider
+Parameters:
+  DefaultSecurityGroup:
+    Type: String
+    Default: ''
+  S3BucketPrefix:
+    Type: String
+    Default: ''
+  CFNCustomProviderZipFileName:
+    Type: String
+    Default: lambdas/cfn-auth0-provider-latest.zip
+Resources:
+  CFNCustomProvider:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - LambdaRole
+    Properties:
+      Description: Auth0 Custom CloudFormation Provider
+      Code:
+        S3Bucket: !Sub '${S3BucketPrefix}-${AWS::Region}'
+        S3Key: !Ref 'CFNCustomProviderZipFileName'
+      FunctionName: cfn-auth0-provider
+      Handler: provider.handler
+      MemorySize: 128
+      Role: !GetAtt 'LambdaRole.Arn'
+      Runtime: python2.7
+  LambdaPolicy:
+    Type: AWS::IAM::Policy
+    DependsOn:
+      - LambdaRole
+    Properties:
+      PolicyName: CFNCustomProviderPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - ssm:DescribeParameters
+            Resource: '*'
+          - Effect: Allow
+            Action:
+              - ssm:GetParameters
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cfn-auth0-provider/*'
+          - Effect: Allow
+            Action:
+              - ssm:GetParameter
+            Resource:
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cfn-auth0-provider/*'
+      Roles:
+        - !Ref 'LambdaRole'
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Action:
+              - sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
