@@ -1,9 +1,11 @@
 import re
+import json
 import boto3
 import requests
 import logging
 from cfn_resource_provider import ResourceProvider
 from auth0_access_token import get_access_token
+from request_update import create_update_request
 
 #
 # The request schema defining the Resource Properties
@@ -75,7 +77,6 @@ class Auth0Provider(ResourceProvider):
         self.headers = {'Authorization': 'Bearer %s' % self.access_token}
 
     def is_supported_resource_type(self):
-        print '>>> is_supported_resource_type() = %s, %s' % (self.resource_type.startswith('Custom::Auth0'), self.request_type)
         return self.resource_type.startswith('Custom::Auth0')
 
     @property
@@ -95,44 +96,47 @@ class Auth0Provider(ResourceProvider):
         return '%s%s' % (self.tenant, self.uri)
 
     def set_attributes_from_returned_value(self, value):
+        print json.dumps(value, indent=2)
         """
         callback to set additional attributes from returned value to be accessed through Fn::GetAtt.
         """
-        pass
+        if self.resource_type == 'Custom::Auth0Client':
+            self.physical_resource_id = value['client_id']
+            self.set_attribute('Tenant', value['tenant'])
+            self.set_attribute('ClientId', value['client_id'])
+        else:
+            self.physical_resource_id = value['id']
 
-    def set_physical_resource_id_from_value(self, value):
-        # ugly hack: the API of Auth0 returns the id as the property 'id' for all resource types, except for Clients...
-        self.physical_resource_id = value['id'] if self.resource_type != 'Custom::Auth0Client' else value['client_id']
-        
+        if 'client_secret' in value:
+            self.set_attribute('ClientSecret', value['client_secret'])
 
     def create(self):
         self.get_token()
         print self.url
         r = requests.post(self.url, headers=self.headers, json=self.get('Value'))
         if r.status_code == 201:
-            value = r.json()
-            self.set_physical_resource_id_from_value(value)
-            self.set_attributes_from_returned_value(value)
+            self.set_attributes_from_returned_value(r.json())
         else:
             self.physical_resource_id = 'could-not-create'
             self.fail('status code %d, %s' % (r.status_code, r.text))
 
     def update(self):
         self.get_token()
-        r = requests.patch('%s/%s' % (self.url, self.physical_resource_id),
-                           headers=self.headers, json=self.get('Value'))
+        value = create_update_request(self.resource_type, self.get_old('Value'), self.get('Value'))
+        r = requests.patch('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers, json=value)
         if r.status_code == 200:
-            value = r.json()
-            self.set_physical_resource_id_from_value(value)
-            self.set_attributes_from_returned_value(value)
+            self.set_attributes_from_returned_value(r.json())
         else:
             self.fail('status code %d, %s' % (r.status_code, r.text))
 
     def delete(self):
-        self.get_token()
-        r = requests.delete('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers)
-        if r.status_code != 204:
-            self.fail('status code %d, %s' % (r.status_code, r.text))
+        if self.physical_resource_id != 'could-not-create':
+            self.get_token()
+            r = requests.delete('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers)
+            if r.status_code != 204:
+                self.fail('status code %d, %s' % (r.status_code, r.text))
+        else:
+            pass  # object was not created in the first place
 
 provider = Auth0Provider()
 

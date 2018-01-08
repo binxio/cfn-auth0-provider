@@ -14,34 +14,33 @@ sample_client = {
     "logo_uri": "",
     "sso": True,
     "callbacks": [
-      "http://localhost:3000/consumer-api/v1/callback",
-      "https://dev-api.coin.nl/consumerapi/v1/callback",
-      "http://localhost:5000/consumer-api/v1/callback"
-     ],
+        "http://localhost:3000/consumer-api/v1/callback",
+        "https://dev-api.coin.nl/consumerapi/v1/callback",
+        "http://localhost:5000/consumer-api/v1/callback"
+    ],
     "allowed_logout_urls": [],
     "allowed_clients": [],
     "allowed_origins": [
-      "http://localhost:3000",
-      "https://mvanholsteijn.eu.auth0.com/authorize",
-      "https://mvanholsteijn.eu.auth0.com/login",
-      "https://mvanholsteijn.eu.auth0.com"
+        "http://localhost:3000",
+        "https://mvanholsteijn.eu.auth0.com/authorize",
+        "https://mvanholsteijn.eu.auth0.com/login",
+        "https://mvanholsteijn.eu.auth0.com"
     ],
     "jwt_configuration": {
-      "alg": "RS256",
-      "lifetime_in_seconds": 3600,
-      "secret_encoded": False
+        "alg": "RS256",
+        "lifetime_in_seconds": 3600
     },
     "token_endpoint_auth_method": "none",
     "app_type": "spa",
     "grant_types": [
-      "authorization_code",
-      "http://auth0.com/oauth/grant-type/password-realm",
-      "implicit",
-      "password",
-      "refresh_token"
+        "authorization_code",
+        "http://auth0.com/oauth/grant-type/password-realm",
+        "implicit",
+        "password",
+        "refresh_token"
     ],
     "custom_login_page_on": True
-  }
+}
 
 
 def test_create():
@@ -52,8 +51,18 @@ def test_create():
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
     assert 'PhysicalResourceId' in response
-    assert 'PublicKeyPEM' in response['Data']
+    assert 'ClientSecret' in response['Data']
     assert 'ClientId' in response['Data']
+    assert response['PhysicalResourceId'] == response['Data']['ClientId']
+
+    # update
+    request = Request('Update', client, response['PhysicalResourceId'])
+    response = handler(request, {})
+    print json.dumps(response, indent=2)
+    assert response['Status'] == 'SUCCESS', response['Reason']
+    assert 'PhysicalResourceId' in response
+    assert 'ClientId' in response['Data']
+    assert 'ClientSecret' in response['Data']
     assert response['PhysicalResourceId'] == response['Data']['ClientId']
 
     # delete

@@ -28,6 +28,3 @@ def get_access_token(tenant, client_id, client_secret):
             raise ValueError('error retrieving access token from %s, status code %d, %s' % (url, r.status_code, r.text))
 
     return cache[key][1]
-
-
-
