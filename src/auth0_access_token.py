@@ -13,7 +13,7 @@ def get_access_token(tenant, client_id, client_secret):
     url = tenant[:-1] if tenant.endswith('/') else tenant
     key = '%s+%s+%s' % (url, client_id, client_secret)
 
-    if key not in cache or cache[key][0] > datetime.now():
+    if key not in cache or cache[key][0] < datetime.now():
         body = {'grant_type': 'client_credentials',
                 'client_id': client_id,
                 'client_secret': client_secret,
