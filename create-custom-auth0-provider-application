@@ -7,6 +7,7 @@ function main {
 	[[ -z $AUTH0_DOMAIN ]] && echo "ERROR: environment variable AUTH0_DOMAIN not set" >&2 && exit 1
 	[[ -z $AUTH0_API_TOKEN ]] && echo "ERROR: environment variable AUTH0_API_TOKEN not set" >&2 && exit 1
 	[[ -z $AWS_DEFAULT_PROFILE ]] && echo "ERROR: environment variable AWS_DEFAULT_PROFILE not set" >&2 && exit 1
+	[[ -z $AWS_REGION ]] && echo "ERROR: environment variable AWS_REGION not set" >&2 && exit 1
 
 	create_app
 	grant_app
@@ -67,9 +68,9 @@ function grant_app {
 }
 
 function store_credentials {
-   aws ssm put-parameter --name /cfn-auth0-provider/tenant --type SecureString --value=$AUTH0_DOMAIN --overwrite
-   aws ssm put-parameter --name /cfn-auth0-provider/client_id --type SecureString --value=$CLIENT_ID --overwrite
-   aws ssm put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/tenant --type SecureString --value=$AUTH0_DOMAIN --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_id --type SecureString --value=$CLIENT_ID --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
 }
 
 main "$@"
