@@ -1,0 +1,75 @@
+#!/bin/bash
+
+CLIENT_ID=
+CLIENT_SECRET=
+
+function main {
+	[[ -z $AUTH0_DOMAIN ]] && echo "ERROR: environment variable AUTH0_DOMAIN not set" >&2 && exit 1
+	[[ -z $AUTH0_API_TOKEN ]] && echo "ERROR: environment variable AUTH0_API_TOKEN not set" >&2 && exit 1
+	[[ -z $AWS_DEFAULT_PROFILE ]] && echo "ERROR: environment variable AWS_DEFAULT_PROFILE not set" >&2 && exit 1
+
+	create_app
+	grant_app
+	store_credentials
+}
+
+
+function create_app {
+	APP=$(curl -sS -H "authorization: bearer $AUTH0_API_TOKEN" \
+	     -H 'content-type: application/json' \
+	     -X POST \
+	     -d '{ "name": "Auth0 CloudFormation Provider", "app_type": "non_interactive", "jwt_configuration": { "lifetime_in_seconds": 300 } }' \
+	     https://$AUTH0_DOMAIN/api/v2/clients 
+)
+	CLIENT_ID=$(jq -r .client_id <<< $APP)
+	CLIENT_SECRET=$(jq -r .client_secret <<< $APP)
+
+	[[ -z $CLIENT_ID ]] && echo "ERROR: failed to obtain client id" >&2 && exit 1
+	[[ -z $CLIENT_SECRET ]] && echo "ERROR: failed to obtain client secret" >&2 && exit 1
+}
+
+function grant_app {
+	CLIENT_GRANT=$(cat <<!
+{
+    "client_id": "$CLIENT_ID",
+    "audience": "https://$AUTH0_DOMAIN/api/v2/",
+    "scope": [
+      "read:client_grants",
+      "create:client_grants",
+      "delete:client_grants",
+      "update:client_grants",
+      "read:clients",
+      "update:clients",
+      "delete:clients",
+      "create:clients",
+      "read:connections",
+      "update:connections",
+      "delete:connections",
+      "create:connections",
+      "read:resource_servers",
+      "update:resource_servers",
+      "delete:resource_servers",
+      "create:resource_servers",
+      "read:rules",
+      "update:rules",
+      "delete:rules",
+      "create:rules"
+    ]
+}
+!
+)
+	curl -sS \
+             -H "authorization: Bearer $AUTH0_API_TOKEN" \
+	     -H 'content-type: application/json' \
+	     -X POST \
+	     -d "$CLIENT_GRANT" \
+	     https://$AUTH0_DOMAIN/api/v2/client-grants 
+}
+
+function store_credentials {
+   aws ssm put-parameter --name /cfn-auth0-provider/tenant --type SecureString --value=$AUTH0_DOMAIN --overwrite
+   aws ssm put-parameter --name /cfn-auth0-provider/client_id --type SecureString --value=$CLIENT_ID --overwrite
+   aws ssm put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
+}
+
+main "$@"
