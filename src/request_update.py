@@ -4,7 +4,7 @@ import json
 list of non-updatable properties.
 """
 non_updatable_properties = {
-    'Custom::Auth0Client': ['jwt.secret_encoded'],
+    'Custom::Auth0Client': ['jwt_configuration.secret_encoded'],
     'Custom::Auth0ResourceServer': ['identifier']
 }
 

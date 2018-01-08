@@ -51,7 +51,6 @@ def test_create():
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
     assert 'PhysicalResourceId' in response
-    assert 'ClientSecret' in response['Data']
     assert 'ClientId' in response['Data']
     assert response['PhysicalResourceId'] == response['Data']['ClientId']
 
@@ -62,7 +61,6 @@ def test_create():
     assert response['Status'] == 'SUCCESS', response['Reason']
     assert 'PhysicalResourceId' in response
     assert 'ClientId' in response['Data']
-    assert 'ClientSecret' in response['Data']
     assert response['PhysicalResourceId'] == response['Data']['ClientId']
 
     # delete
