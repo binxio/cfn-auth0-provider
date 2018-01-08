@@ -1,11 +1,10 @@
 # cfn-auth0-provider
 A CloudFormation custom resource provider for managing Auth0.com resources.
 
-When you deploy applications in Amazon ECS which use Auth0.com for authentication and authorization, you need to configure Auth0 Clients and Resource Servers (APIs).
-
+When you deploy applications in Amazon ECS which uses Auth0.com for authentication and authorization, you need to configure Auth0 Clients and Resource Servers (APIs).
 With this Custom CloudFormation Provider you can deploy applications and ECS Services from a single Cloudformation module.
 
-## How do I deploy a Auth0 Client?
+## How do I deploy an Auth0 Client?
 It is quite easy: you specify a CloudFormation resource of type [Custom::Auth0Client](docs/Auth0.md):
 
 ```yaml
@@ -25,7 +24,7 @@ It is quite easy: you specify a CloudFormation resource of type [Custom::Auth0Cl
 After the deployment, the client `cfn-auth0-petstore-client` can be found in your Auth0 tenant. The client id
 can be obtained through `!GetAtt 'Client.ClientId'`.
 
-## How do I deploy a Auth0 API?
+## How do I deploy an Auth0 API?
 You specify a CloudFormation resource of type [Custom::Auth0ResourceServer](docs/Auth0.md):
 
 ```yaml
