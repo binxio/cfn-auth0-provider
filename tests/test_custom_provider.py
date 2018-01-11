@@ -144,6 +144,12 @@ def test_output_parameters():
         except ClientError as e:
             assert e.response['Error']['Code'] == 'ParameterNotFound'
 
+    # Double delete works too
+    request = Request('Delete', {}, physical_resource_id)
+    request['ResourceProperties']['OutputParameters'] = outputs
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+
 
 class Request(dict):
 
