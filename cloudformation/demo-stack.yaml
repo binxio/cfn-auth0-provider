@@ -86,10 +86,9 @@ Resources:
           }
 
 Outputs:
+  Tenant:
+    Description: The tenant of the Auth0 client
+    Value: !GetAtt 'Client.Tenant'
   ClientId:
-    Description: The client id of the Auth0 Client
+    Description: The id of the Auth0 Client
     Value: !GetAtt 'Client.ClientId'
-
-  ClientSecret:
-    Description: The secret key of the client
-    Value: !GetAtt 'Client.ClientSecret'
