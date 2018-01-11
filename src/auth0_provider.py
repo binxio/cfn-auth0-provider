@@ -3,9 +3,10 @@ import json
 import boto3
 import requests
 import logging
+from botocore.exceptions import ClientError
 from cfn_resource_provider import ResourceProvider
 from auth0_access_token import get_access_token
-from request_update import create_update_request
+from request_update import create_update_request, get_property_value_by_path
 
 #
 # The request schema defining the Resource Properties
@@ -30,6 +31,29 @@ request_schema = {
                     "type": "string",
                     "default": "/cfn-auth0-provider/client_secret",
                     "description": "Name of the parameter in the Parameter Store for the Client secret"}
+            }
+        },
+        "OutputParameters": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["Name", "Path"],
+                "properties": {
+                    "Name": {
+                        "type": "string",
+                        "description": "name of the parameter to store the value in"},
+                    "Path": {
+                        "type": "string",
+                        "description": "path to the value to be stored, seperated with ."},
+                    "Description": {
+                        "type": "string",
+                        "default": "",
+                        "description": "for the value in the parameter store"},
+                    "KeyAlias": {
+                        "type": "string",
+                        "default": "alias/aws/ssm",
+                        "description": "KMS key alias to use to encrypt the value"}
+                }
             }
         },
         "Value": {
@@ -116,6 +140,7 @@ class Auth0Provider(ResourceProvider):
         r = requests.post(self.url, headers=self.headers, json=self.get('Value'))
         if r.status_code == 201:
             self.set_attributes_from_returned_value(r.json())
+            self.store_output_parameters(r.json(), overwrite=False)
         else:
             self.physical_resource_id = 'could-not-create'
             self.fail('status code %d, %s' % (r.status_code, r.text))
@@ -126,6 +151,7 @@ class Auth0Provider(ResourceProvider):
         r = requests.patch('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers, json=value)
         if r.status_code == 200:
             self.set_attributes_from_returned_value(r.json())
+            self.store_output_parameters(r.json(), overwrite=True)
         else:
             self.fail('status code %d, %s' % (r.status_code, r.text))
 
@@ -133,10 +159,47 @@ class Auth0Provider(ResourceProvider):
         if self.physical_resource_id != 'could-not-create':
             self.get_token()
             r = requests.delete('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers)
-            if r.status_code != 204:
+            if r.status_code == 204:
+                self.delete_output_parameters()
+            else:
                 self.fail('status code %d, %s' % (r.status_code, r.text))
         else:
             pass  # object was not created in the first place
+
+    def delete_output_parameters(self):
+        parameters = self.get('OutputParameters', [])
+        for name in map(lambda p: p['Name'], parameters):
+            try:
+                self.ssm.delete_parameter(Name=name)
+            except ClientError as e:
+                if e.response['Error']['Code'] != 'ParameterNotFound':
+                    log.warn('failed to delete "{}" from parameter store, {}', name, str(e))
+
+    def store_output_parameters(self, obj, overwrite=False):
+        parameters = self.get('OutputParameters', [])
+        for parameter in parameters:
+            path = parameter['Path']
+            name = parameter['Name']
+            value = get_property_value_by_path(obj, path)
+            if value is not None:
+                try:
+                    kwargs = {
+                        'Name': name,
+                        'Type': 'SecureString',
+                        'Value': value,
+                        'Overwrite': overwrite
+                    }
+                    if 'Description' in parameter:
+                        kwargs['Description'] = parameter['Description']
+                    if 'KeyAlias' in parameter:
+                        kwargs['KeyId'] = parameter['KeyAlias']
+
+                    self.ssm.put_parameter(**kwargs)
+                except ClientError as e:
+                    self.fail(str(e))
+            else:
+                self.fail('path %s did not result in a value' % path)
+
 
 provider = Auth0Provider()
 

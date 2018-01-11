@@ -1,6 +1,8 @@
 import uuid
 import json
 from provider import handler
+import boto3
+from botocore.exceptions import ClientError
 
 
 sample_client = {
@@ -68,6 +70,75 @@ def test_create():
     request = Request('Delete', {}, physical_resource_id)
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
+
+
+def test_output_parameters():
+    name = 'n%s' % uuid.uuid4()
+    outputs = [
+        {
+            'Path': 'client_id',
+            'Name': '/cfn-auth0-provider/clients/%s/client_id' % name,
+            'Description': 'my client id'},
+        {
+            'Path': 'client_secret',
+            'Name': '/cfn-auth0-provider/clients/%s/client_secret' % name}
+    ]
+    # create
+    client = json.loads(json.dumps(sample_client))
+    client['name'] = name
+    request = Request('Create', client)
+    request['ResourceProperties']['OutputParameters'] = outputs
+    response = handler(request, {})
+
+    assert response['Status'] == 'SUCCESS', response['Reason']
+    client_id = response['PhysicalResourceId']
+
+    ssm = boto3.client('ssm')
+    parameter = ssm.get_parameter(Name=outputs[0]['Name'], WithDecryption=True)
+
+    assert parameter['Parameter']['Value'] == client_id
+
+    filter = {
+            'Key': 'Name',
+            'Values': [outputs[0]['Name']]
+    }
+    parameters = ssm.describe_parameters(Filters=[filter])
+    assert parameters['Parameters'][0]['Description'] == outputs[0]['Description']
+
+    # check the client secret is stored..
+    parameter = ssm.get_parameter(Name=outputs[1]['Name'], WithDecryption=True)
+
+    # update
+    outputs = [
+        {
+            'Path': 'client_secret',
+            'Name': '/cfn-auth0-provider/clients/%s/client_id' % name},
+        {
+            'Path': 'client_id',
+            'Name': '/cfn-auth0-provider/clients/%s/client_secret' % name}
+    ]
+
+    request = Request('Update', client, response['PhysicalResourceId'])
+    request['ResourceProperties']['OutputParameters'] = outputs
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+
+    # check the client_id was written in the secret parameter
+    parameter = ssm.get_parameter(Name=outputs[1]['Name'], WithDecryption=True)
+    assert parameter['Parameter']['Value'] == client_id
+
+    # delete
+    physical_resource_id = response['PhysicalResourceId']
+    request = Request('Delete', {}, physical_resource_id)
+    request['ResourceProperties']['OutputParameters'] = outputs
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+    for parameter in outputs:
+        try:
+            parameter = ssm.get_parameter(Name=parameter['Name'], WithDecryption=True)
+            assert False, '%s should not exist' % parameter['Name']
+        except ClientError as e:
+            assert e.response['Error']['Code'] == 'ParameterNotFound'
 
 
 class Request(dict):
