@@ -99,8 +99,8 @@ def test_output_parameters():
     assert parameter['Parameter']['Value'] == client_id
 
     filter = {
-            'Key': 'Name',
-            'Values': [outputs[0]['Name']]
+        'Key': 'Name',
+        'Values': [outputs[0]['Name']]
     }
     parameters = ssm.describe_parameters(Filters=[filter])
     assert parameters['Parameters'][0]['Description'] == outputs[0]['Description']
@@ -109,23 +109,27 @@ def test_output_parameters():
     parameter = ssm.get_parameter(Name=outputs[1]['Name'], WithDecryption=True)
 
     # update
-    outputs = [
-        {
-            'Path': 'client_secret',
-            'Name': '/cfn-auth0-provider/clients/%s/client_id' % name},
-        {
-            'Path': 'client_id',
-            'Name': '/cfn-auth0-provider/clients/%s/client_secret' % name}
+    new_outputs = [{
+        'Path': 'client_id',
+        'Name': '/cfn-auth0-provider/clients/%s/client_secret' % name}
     ]
 
     request = Request('Update', client, response['PhysicalResourceId'])
-    request['ResourceProperties']['OutputParameters'] = outputs
+    request['OldResourceProperties'] = {}
+    request['OldResourceProperties']['OutputParameters'] = outputs
+    request['ResourceProperties']['OutputParameters'] = new_outputs
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
 
     # check the client_id was written in the secret parameter
-    parameter = ssm.get_parameter(Name=outputs[1]['Name'], WithDecryption=True)
+    parameter = ssm.get_parameter(Name=new_outputs[0]['Name'], WithDecryption=True)
     assert parameter['Parameter']['Value'] == client_id
+    # check that the removed output is deleted.
+    try:
+        parameter = ssm.get_parameter(Name=outputs[0]['Name'], WithDecryption=True)
+        assert False, '%s should not exist' % parameter['Parameter']['Name']
+    except ClientError as e:
+        assert e.response['Error']['Code'] == 'ParameterNotFound'
 
     # delete
     physical_resource_id = response['PhysicalResourceId']

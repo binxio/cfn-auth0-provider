@@ -152,8 +152,23 @@ class Auth0Provider(ResourceProvider):
         if r.status_code == 200:
             self.set_attributes_from_returned_value(r.json())
             self.store_output_parameters(r.json(), overwrite=True)
+            self.remove_deleted_parameters()
         else:
             self.fail('status code %d, %s' % (r.status_code, r.text))
+
+    def remove_deleted_parameters(self):
+        old_parameters = set(map(lambda p: p['Name'], self.get_old('OutputParameters', [])))
+        print '>Old> %s' % old_parameters
+        current_parameters = set(map(lambda p: p['Name'], self.get('OutputParameters', [])))
+        print '>Current> %s' % old_parameters
+        to_delete = old_parameters - current_parameters
+        print '>Remove> %s' % to_delete
+        for name in to_delete:
+            try:
+                self.ssm.delete_parameter(Name=name)
+            except ClientError as e:
+                if e.response['Error']['Code'] != 'ParameterNotFound':
+                    log.warn('failed to delete "{}" from parameter store, {}', name, str(e))
 
     def delete(self):
         if self.physical_resource_id != 'could-not-create':
