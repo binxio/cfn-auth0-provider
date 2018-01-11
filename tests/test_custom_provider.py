@@ -108,6 +108,11 @@ def test_output_parameters():
     # check the client secret is stored..
     parameter = ssm.get_parameter(Name=outputs[1]['Name'], WithDecryption=True)
 
+    # create second time
+    error_response = handler(request, {})
+    assert error_response['Status'] == 'FAILED', response['Reason']
+    assert error_response['Reason'].startswith('one or more of the parameters')
+
     # update
     new_outputs = [{
         'Path': 'client_id',

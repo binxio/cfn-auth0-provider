@@ -132,15 +132,17 @@ class Auth0Provider(ResourceProvider):
             self.physical_resource_id = value['id']
 
     def create(self):
-        self.get_token()
-        print self.url
-        r = requests.post(self.url, headers=self.headers, json=self.get('Value'))
-        if r.status_code == 201:
-            self.set_attributes_from_returned_value(r.json())
-            self.store_output_parameters(r.json(), overwrite=False)
+        if self.check_parameters_precondition():
+            self.get_token()
+            r = requests.post(self.url, headers=self.headers, json=self.get('Value'))
+            if r.status_code == 201:
+                self.set_attributes_from_returned_value(r.json())
+                self.store_output_parameters(r.json(), overwrite=False)
+            else:
+                self.physical_resource_id = 'could-not-create'
+                self.fail('status code %d, %s' % (r.status_code, r.text))
         else:
             self.physical_resource_id = 'could-not-create'
-            self.fail('status code %d, %s' % (r.status_code, r.text))
 
     def update(self):
         self.get_token()
@@ -152,6 +154,17 @@ class Auth0Provider(ResourceProvider):
             self.remove_deleted_parameters()
         else:
             self.fail('status code %d, %s' % (r.status_code, r.text))
+
+    def check_parameters_precondition(self):
+        names = list(map(lambda p: p['Name'], self.get('OutputParameters', [])))
+        if len(names) > 0:
+            try:
+                r = self.ssm.describe_parameters(Filters=[{'Key': 'Name', 'Values': names}])
+                if len(r['Parameters']) > 0:
+                    self.fail('one or more of the parameters %s already exist' % names)
+            except ClientError as e:
+                self.fail('failed to determine the presence of output parameters, %s' % str(e))
+        return self.status == 'SUCCESS'
 
     def remove_deleted_parameters(self):
         old_parameters = set(map(lambda p: p['Name'], self.get_old('OutputParameters', [])))
