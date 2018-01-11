@@ -47,8 +47,8 @@ Resources:
           - Effect: Allow
             Action:
               - ssm:GetParameters
-              - ssm:DeleteParameters
               - ssm:GetParameter
+              - ssm:DeleteParameter
               - ssm:PutParameter
             Resource:
               - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/auth0-resources/*'
