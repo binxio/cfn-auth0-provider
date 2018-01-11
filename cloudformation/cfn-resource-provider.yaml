@@ -41,13 +41,17 @@ Resources:
           - Effect: Allow
             Action:
               - ssm:GetParameters
+              - ssm:GetParameter
             Resource:
               - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cfn-auth0-provider/*'
           - Effect: Allow
             Action:
+              - ssm:GetParameters
+              - ssm:DeleteParameters
               - ssm:GetParameter
+              - ssm:PutParameter
             Resource:
-              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/cfn-auth0-provider/*'
+              - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/auth0-resources/*'
       Roles:
         - !Ref 'LambdaRole'
 

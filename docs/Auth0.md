@@ -16,6 +16,11 @@ To create a Auth0 resource using your your AWS CloudFormation template, use the 
 	ClientIdParameterName: '/cfn-auth0-provider/client_id'
 	ClientSecretParameterName: '/cfn-auth0-provider/client_secret'
 
+      OutputParameters:
+	- Name: /cfn-auth0-provider/resource/id
+	  Path: id
+          Description: Id of the created resource
+
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
 ```
 
@@ -29,6 +34,27 @@ Supported Auth0 resource types are:
 
 In principle any Auth0 resource which supports a POST, PATCH and DELETE can be managed. Please make sure that
 your non-interactive client has the appropriate privileges.
+
+## Output Parameters
+In order to copy credentials from created resources into the parameter store, you can specify `OutputParameters`:
+
+- `Path` - to the required property from the created or updated object
+- `Name` - of the value in the Parameter Store
+- `Description` - of the value
+- `KeyAlias` - Optional, key to use to encrypt the value
+
+for example:
+
+```
+   OutputParameters:
+     - Name: /auth0-resources/sample-client/client_id
+       Path: client_id
+       Description: client id of the sample client
+
+     - Name: /auth0-resources/sample-client/client_secret
+       Path: client_secret
+       Description: client secret of the sample client
+```
 
 ## Connection
 In order to be able to manage the Auth0 credentials, you need to create an Non-Interactive application
@@ -58,9 +84,6 @@ For the Custom::Auth0Client the following values are available with 'Fn::GetAtt'
 
      `Tenant` - the tenant name of the application
      `ClientId` - the client id of the application
-     `ClientSecret` - the client secret of the application, if the provider has `read:client_keys` permission.
 
 For more information about using Fn::GetAtt, see [Fn::GetAtt](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/intrinsic-function-reference-getatt.html).
 
-## TODO
-Store Client secret information in the parameter store.

@@ -131,9 +131,6 @@ class Auth0Provider(ResourceProvider):
         else:
             self.physical_resource_id = value['id']
 
-        if 'client_secret' in value:
-            self.set_attribute('ClientSecret', value['client_secret'])
-
     def create(self):
         self.get_token()
         print self.url
