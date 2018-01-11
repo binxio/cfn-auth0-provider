@@ -5,6 +5,14 @@ Resources:
     Type: Custom::Auth0Client
     Properties:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      OutputParameters:
+        - Name: /auth0-resources/client/id
+          Description: OAuth client id
+          Path: client_id
+        - Name: /auth0-resources/client/secret
+          Path: client_secret
+          Description: OAuth client secret
+
       Value: 
         name: cfn-auth0-petsstore-client
         description: Sample Auth0 Client
