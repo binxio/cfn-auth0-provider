@@ -9,7 +9,7 @@ Parameters:
     Default: ''
   CFNCustomProviderZipFileName:
     Type: String
-    Default: lambdas/cfn-auth0-provider-0.2.3.zip
+    Default: lambdas/cfn-auth0-provider-0.2.4.zip
 Resources:
   CFNCustomProvider:
     Type: AWS::Lambda::Function
