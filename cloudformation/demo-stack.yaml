@@ -1,0 +1,268 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Auth0 Demo Custom Provider
+Parameters:
+  CFNAuth0ProviderClientId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /cfn-auth0-provider/client_id
+Resources:
+  Client:
+    Type: Custom::Auth0Client
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      OutputParameters:
+        - Name: /auth0-resources/client/id
+          Description: OAuth client id
+          Path: client_id
+        - Name: /auth0-resources/client/secret
+          Path: client_secret
+          Description: OAuth client secret
+
+      Value:
+        name: cfn-auth0-petsstore-client
+        description: Sample Auth0 Client
+        app_type: non_interactive
+        allowed_origins:
+          - 'http://localhost:3000'
+        callbacks:
+          - 'http://localhost:3000/consumer-api/v1/callback'
+        jwt_configuration:
+          lifetime_in_seconds: 3600
+          alg: RS256
+        grant_types:
+          - authorization_code
+          - 'http://auth0.com/oauth/grant-type/password-realm'
+          - implicit
+          - password
+          - refresh_token
+        token_endpoint_auth_method: none
+        is_token_endpoint_ip_header_trusted: false
+        sso_disabled: false
+        oidc_conformant: true
+        cross_origin_auth: false
+        sso: false
+        custom_login_page_on: true
+        allowed_clients: []
+        is_first_party: true
+        allowed_logout_urls: []
+
+  API:
+    Type: Custom::Auth0ResourceServer
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        name: cfn-auth0-petstore-api
+        identifier: 'https://github.com/binxio/cfn-auth0-provider/petstore'
+        allow_offline_access: false
+        skip_consent_for_verifiable_first_party_clients: true
+        token_lifetime: 900
+        token_lifetime_for_web: 900
+        signing_alg: RS256
+        scopes:
+          - {value: 'create:pets', description: 'add pets'}
+          - {value: 'update:pets', description: 'update pets'}
+          - {value: 'get:pets', description: 'get pets'}
+          - {value: 'delete:pets', description: 'delete pets'}
+
+  ClientGrant:
+    Type: Custom::Auth0ClientGrant
+    DependsOn: [Client, API]
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        client_id: !Ref Client
+        audience: 'https://github.com/binxio/cfn-auth0-provider/petstore'
+        scope:
+          - get:pets
+
+  CreatePermission:
+    Type: Custom::Authz0Permission
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: "create pets"
+        name: "create:pets"
+
+  UpdatePermission:
+    Type: Custom::Authz0Permission
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: "create pets"
+        name: "update:pets"
+
+  GetPermission:
+    Type: Custom::Authz0Permission
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: "get pets"
+        name: "get:pets"
+
+  DeletePermission:
+    Type: Custom::Authz0Permission
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: "delete pets"
+        name: "delete:pets"
+
+  OwnerRole:
+    Type: Custom::Authz0Role
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: owner of the petstore
+        name: petstore-owner
+        permissions:
+          - !Ref CreatePermission
+          - !Ref UpdatePermission
+          - !Ref DeletePermission
+          - !Ref GetPermission
+
+  CustomerRole:
+    Type: Custom::Authz0Role
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        applicationType: client
+        applicationId: !Ref API
+        description: customer of the petstore
+        name: petstore-customer
+        permissions:
+          - !Ref UpdatePermission
+          - !Ref GetPermission
+
+  CustomerUser:
+    Type: Custom::Auth0User
+    DependsOn: Connection
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        connection: petstore
+        email: customer@petstore.local
+        password: secret
+
+  CustomerGroup:
+    Type: Custom::Authz0Group
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        description: group of customers of the petstore
+        name: petstore-customers
+
+  CustomerGroupMember:
+    Type: Custom::Authz0GroupMember
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        group: !Ref CustomerGroup
+        member: !Ref CustomerUser
+
+  CustomerGroupRole:
+    Type: Custom::Authz0GroupRole
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        group: !Ref CustomerGroup
+        role: !Ref CustomerRole
+
+  CustomerUserRole:
+    Type: Custom::Authz0UserRole
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        user: !Ref CustomerUser
+        role: !Ref CustomerRole
+
+  OwnerUser:
+    Type: Custom::Auth0User
+    DependsOn: Connection
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        connection: petstore
+        email: owner@petstore.local
+        password: secret
+
+  OwnerUserRole:
+    Type: Custom::Authz0UserRole
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        role: !Ref OwnerRole
+        user: !Ref OwnerUser
+
+  OwnerGroup:
+    Type: Custom::Authz0Group
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        description: group of owners of the petstore
+        name: petstore-owners
+
+  OwnerGroupMember:
+    Type: Custom::Authz0GroupMember
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        group: !Ref OwnerGroup
+        member: !Ref OwnerUser
+
+  OwnerGroupRole:
+    Type: Custom::Authz0GroupRole
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        group: !Ref OwnerGroup
+        role: !Ref OwnerRole
+
+  Connection:
+    Type: Custom::Auth0Connection
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        name: petstore
+        strategy: auth0
+        options:
+          mfa:
+            active: false
+            return_enroll_settings: true
+          disable_signup: true
+          requires_username: false
+          brute_force_protection: true
+        is_domain_connection: false
+        enabled_clients:
+          - !Ref Client
+          - !Ref CFNAuth0ProviderClientId
+
+  Rule:
+    Type: Custom::Auth0Rule
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      Value:
+        name: 'cfn-auth0-petstore-rule'
+        enabled: false
+        script: |
+          function (user, context, callback) {
+            // do want you need to do here
+            callback(null, user, context);
+          }
+
+Outputs:
+  Tenant:
+    Description: The tenant of the Auth0 client
+    Value: !GetAtt 'Client.Tenant'
+  ClientId:
+    Description: The id of the Auth0 Client
+    Value: !GetAtt 'Client.ClientId'
