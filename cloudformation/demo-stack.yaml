@@ -11,17 +11,17 @@ Resources:
     Properties:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       OutputParameters:
-        - Name: /auth0-resources/client/id
+        - Name: /auth0-resources/spa-client/id
           Description: OAuth client id
           Path: client_id
-        - Name: /auth0-resources/client/secret
+        - Name: /auth0-resources/spa-client/secret
           Path: client_secret
           Description: OAuth client secret
 
       Value:
-        name: cfn-auth0-petsstore-client
-        description: Sample Auth0 Client
-        app_type: non_interactive
+        name: cfn-auth0-petsstore-web
+        description: Sample Auth0 webapp 
+        app_type: spa
         allowed_origins:
           - 'http://localhost:3000'
         callbacks:
@@ -29,22 +29,6 @@ Resources:
         jwt_configuration:
           lifetime_in_seconds: 3600
           alg: RS256
-        grant_types:
-          - authorization_code
-          - 'http://auth0.com/oauth/grant-type/password-realm'
-          - implicit
-          - password
-          - refresh_token
-        token_endpoint_auth_method: none
-        is_token_endpoint_ip_header_trusted: false
-        sso_disabled: false
-        oidc_conformant: true
-        cross_origin_auth: false
-        sso: false
-        custom_login_page_on: true
-        allowed_clients: []
-        is_first_party: true
-        allowed_logout_urls: []
 
   API:
     Type: Custom::Auth0ResourceServer
@@ -64,13 +48,38 @@ Resources:
           - {value: 'get:pets', description: 'get pets'}
           - {value: 'delete:pets', description: 'delete pets'}
 
+  NonInteractiveClient:
+    Type: Custom::Auth0Client
+    Properties:
+      ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
+      OutputParameters:
+        - Name: /auth0-resources/non-interactive-client/id
+          Description: OAuth client id
+          Path: client_id
+        - Name: /auth0-resources/non-interactive-client/secret
+          Path: client_secret
+          Description: OAuth client secret
+
+      Value:
+        name: cfn-auth0-petsstore-client
+        description: Sample Auth0 Client
+        app_type: non_interactive
+        jwt_configuration:
+          lifetime_in_seconds: 300
+          alg: RS256
+        grant_types:
+          - authorization_code
+          - implicit
+          - password
+          - refresh_token
+
   ClientGrant:
     Type: Custom::Auth0ClientGrant
-    DependsOn: [Client, API]
+    DependsOn: [NonInteractiveClient, API]
     Properties:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
-        client_id: !Ref Client
+        client_id: !Ref NonInteractiveClient
         audience: 'https://github.com/binxio/cfn-auth0-provider/petstore'
         scope:
           - get:pets
