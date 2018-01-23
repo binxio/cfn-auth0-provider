@@ -5,36 +5,36 @@ PREFIX=test
 
 for RESOURCE in users ; do
 	echo "INFO: deleting $RESOURCE starting with $PREFIX.." >&2
-	./curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.email | startswith($prefix)) | (.user_id + " " + .email)' | while read ID NAME; do
+	curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.email | startswith($prefix)) | (.user_id + " " + .email)' | while read ID NAME; do
 	echo "Deleting $RESOURCE $NAME.. " >&2
-	./curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
+	curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
 	sleep 0.1
 	done
 done
 
 for RESOURCE in roles permissions groups ; do
 	echo "INFO: deleting $RESOURCE starting with $PREFIX.." >&2
-	./curl-auth0-authz-api -sS  $AUTH0_AUTHZ_API/api/$RESOURCE | jq --arg prefix $PREFIX -r ".$RESOURCE"'[] | select(.name | startswith($prefix)) | (._id + " " + .name)' 2>/dev/null | while read ID NAME; do
+	curl-auth0-authz-api -sS  $AUTH0_AUTHZ_API/api/$RESOURCE | jq --arg prefix $PREFIX -r ".$RESOURCE"'[] | select(.name | startswith($prefix)) | (._id + " " + .name)' 2>/dev/null | while read ID NAME; do
 		echo "Deleting ${RESOURCE/s\$//} $NAME.. " >&2
-		./curl-auth0-authz-api -sS -X DELETE  $AUTH0_AUTHZ_API/api/$RESOURCE/$ID
+		curl-auth0-authz-api -sS -X DELETE  $AUTH0_AUTHZ_API/api/$RESOURCE/$ID
 		sleep 0.1
 	done
 done
 
 for RESOURCE in connections resource-servers  ; do
 	echo "INFO: deleting $RESOURCE starting with $PREFIX.." >&2
-	./curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.name | startswith($prefix)) | (.id + " " + .name)' | while read ID NAME; do
+	curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.name | startswith($prefix)) | (.id + " " + .name)' | while read ID NAME; do
 	echo "Deleting $RESOURCE $NAME.. " >&2
-	./curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
+	curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
 	sleep 0.1
 	done
 done
 
 for RESOURCE in clients ; do
 	echo "INFO: deleting $RESOURCE starting with $PREFIX.." >&2
-	./curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.name | startswith($prefix)) | (.client_id + " " + .name)' | while read ID NAME; do
+	curl-auth0-mgmt-api -sS  $AUTH0_DOMAIN/api/v2/$RESOURCE | jq --arg prefix $PREFIX -r '.[] | select(.name | startswith($prefix)) | (.client_id + " " + .name)' | while read ID NAME; do
 	echo "Deleting $RESOURCE $NAME.. " >&2
-	./curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
+	curl-auth0-mgmt-api -sS -X DELETE  $AUTH0_DOMAIN/api/v2/$RESOURCE/$ID
 	sleep 0.1
 	done
 done
