@@ -192,7 +192,7 @@ class Auth0Provider(ResourceProvider, object):
             self.store_output_parameters(r.json(), overwrite=True)
             self.remove_deleted_parameters()
         else:
-            self.fail('status code from {} on {}, {}, {}'.format(r.operation, r.url, r.status_code, r.text))
+            self.fail('status code from {} on {}, {}, {}'.format(request.method, r.url, r.status_code, r.text))
 
     def check_parameters_precondition(self):
         names = list(map(lambda p: p['Name'], self.get('OutputParameters', [])))
