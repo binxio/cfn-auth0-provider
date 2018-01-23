@@ -13,8 +13,15 @@ def get_parameter(name):
 
 
 def test_all_stuff():
-    # create api
+    # create client
     name = 'test-%s' % uuid.uuid4()
+    clinet = {'name': name}
+    request = Request('Create', 'Custom::Auth0Client', client)
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+    client_id = response['PhysicalResourceId']
+
+    # create api
     api = {'name': name, 'identifier': 'urn:' + name}
     request = Request('Create', 'Custom::Auth0ResourceServer', api)
     response = handler(request, {})
@@ -22,7 +29,7 @@ def test_all_stuff():
     api_id = response['PhysicalResourceId']
 
     # create permission
-    permission = {'name': 'test-update:pets', 'description': 'update pets', 'applicationId': api_id, 'applicationType': 'client'}
+    permission = {'name': 'test-update:pets', 'description': 'update pets', 'applicationId': client_id, 'applicationType': 'client'}
     request = Request('Create', 'Custom::Authz0Permission', permission)
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
@@ -30,7 +37,7 @@ def test_all_stuff():
 
     # create role
     role = {'name': name, 'description': 'role of {}'.format(
-        name),  'applicationId': api_id, 'applicationType': 'client', 'permissions': [permission_id]}
+        name),  'applicationId': client_id, 'applicationType': 'client', 'permissions': [permission_id]}
     request = Request('Create', 'Custom::Authz0Role', role)
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
@@ -166,6 +173,13 @@ def test_all_stuff():
     request = Request('Delete', 'Custom::Auth0ResourceServer', {}, api_id)
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
+
+    # delete client
+    physical_resource_id = response['PhysicalResourceId']
+    request = Request('Delete', 'Custom::Auth0Client', {}, client_id)
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+
 
 
 class Request(dict):

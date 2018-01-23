@@ -8,7 +8,7 @@ You specify a CloudFormation resource of type `Custom::Authz0Permission`.
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: "create pets"
         name: "create:pets"
 ```

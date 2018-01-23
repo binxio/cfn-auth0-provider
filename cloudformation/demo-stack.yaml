@@ -81,7 +81,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: "create pets"
         name: "create:pets"
 
@@ -91,7 +91,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: "create pets"
         name: "update:pets"
 
@@ -101,7 +101,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: "get pets"
         name: "get:pets"
 
@@ -111,7 +111,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: "delete pets"
         name: "delete:pets"
 
@@ -121,7 +121,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: owner of the petstore
         name: petstore-owner
         permissions:
@@ -136,7 +136,7 @@ Resources:
       ServiceToken: !Sub 'arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider'
       Value:
         applicationType: client
-        applicationId: !Ref API
+        applicationId: !Ref Client
         description: customer of the petstore
         name: petstore-customer
         permissions:
