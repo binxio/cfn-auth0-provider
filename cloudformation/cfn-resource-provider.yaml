@@ -23,8 +23,9 @@ Resources:
       FunctionName: cfn-auth0-provider
       Handler: provider.handler
       MemorySize: 128
+      Timeout: 10
       Role: !GetAtt 'LambdaRole.Arn'
-      Runtime: python2.7
+      Runtime: python3.6
   LambdaPolicy:
     Type: AWS::IAM::Policy
     DependsOn:

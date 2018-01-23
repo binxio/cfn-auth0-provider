@@ -59,7 +59,7 @@ do-build: local-build
 
 local-build: src/*.py venv requirements.txt
 	mkdir -p target/content 
-	docker run -u $$(id -u):$$(id -g) -v $(PWD)/target/content:/venv python:2.7 pip install --quiet -t /venv $$(<requirements.txt)
+	docker run -u $$(id -u):$$(id -g) -v $(PWD)/target/content:/venv python:3.6 pip install --quiet -t /venv $$(<requirements.txt)
 	cp -r src/* target/content
 	find target/content -type d | xargs  chmod ugo+rx 
 	find target/content -type f | xargs  chmod ugo+r 
@@ -67,7 +67,7 @@ local-build: src/*.py venv requirements.txt
 	chmod ugo+r target/$(NAME)-$(VERSION).zip
 
 venv: requirements.txt
-	virtualenv venv  && \
+	virtualenv -p python3 venv  && \
 	. ./venv/bin/activate && \
 	pip --quiet install --upgrade pip && \
 	pip --quiet install -r requirements.txt 
@@ -80,7 +80,7 @@ test: venv
         python -m compileall src  && \
 	pip --quiet install -r test-requirements.txt && \
 	cd src && \
-	PYTHONPATH=$(PWD)/src pytest ../tests/test*.py 
+	PYTHONPATH=$(PWD)/src pytest ../tests/*.py
 
 autopep:
 	autopep8 --experimental --in-place --max-line-length 132 src/*.py tests/*.py

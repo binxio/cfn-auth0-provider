@@ -1,5 +1,4 @@
 import re
-import json
 import boto3
 import requests
 import logging
@@ -17,7 +16,7 @@ request_schema = {
     "properties": {
         "Connection": {
             "type": "object",
-            "required": ["TenantParameterName", "ClientIdParameterName",  "ClientSecretParameterName"],
+            "required": ["TenantParameterName", "ClientIdParameterName", "ClientSecretParameterName"],
             "properties": {
                 "TenantParameterName": {
                     "type": "string",
@@ -30,7 +29,11 @@ request_schema = {
                 "ClientSecretParameterName": {
                     "type": "string",
                     "default": "/cfn-auth0-provider/client_secret",
-                    "description": "Name of the parameter in the Parameter Store for the Client secret"}
+                    "description": "Name of the parameter in the Parameter Store for the Client secret"},
+                "AuthorizationExtensionUrlParameterName": {
+                    "type": "string",
+                    "default": "/cfn-auth0-provider/authorization_url",
+                    "description": "Name of the parameter in the Parameter Store for the Authorization extension URL"}
             }
         },
         "OutputParameters": {
@@ -66,7 +69,7 @@ request_schema = {
 log = logging.getLogger(name=__name__)
 
 
-class Auth0Provider(ResourceProvider):
+class Auth0Provider(ResourceProvider, object):
     """
     Generic Cloudformation custom resource provider for Auth0 resources.
     """
@@ -75,52 +78,79 @@ class Auth0Provider(ResourceProvider):
         super(Auth0Provider, self).__init__()
         self.request_schema = request_schema
         self.ssm = boto3.client('ssm')
+        self._connection_info = None
+        self.headers = {}
 
     def convert_property_types(self):
         self.heuristic_convert_property_types(self.properties)
 
     def get_ssm_parameter(self, name):
-        v = self.ssm.get_parameter(Name=name, WithDecryption=True)
-        return v['Parameter']['Value']
+        value = self.ssm.get_parameter(Name=name, WithDecryption=True)
+        return value['Parameter']['Value']
 
-    def get_token(self):
-        c = self.get(
-            'Connection',
-            {"TenantParameterName": "/cfn-auth0-provider/tenant",
-             "ClientIdParameterName": "/cfn-auth0-provider/client_id",
-             "ClientSecretParameterName": "/cfn-auth0-provider/client_secret"})
+    @property
+    def connection_info(self):
+        if not self._connection_info:
+            self._connection_info = self.get(
+                'Connection',
+                {"DomainParameterName": "/cfn-auth0-provider/domain",
+                 "ClientIdParameterName": "/cfn-auth0-provider/client_id",
+                 "ClientSecretParameterName": "/cfn-auth0-provider/client_secret",
+                 "AuthorizationExtensionUrlParameterName": "/cfn-auth0-provider/authorization_url"})
+        return self._connection_info
 
-        self.tenant = self.get_ssm_parameter(c.get('TenantParameterName'))
-        self.tenant = self.tenant[:-1] if self.tenant.endswith('/') else self.tenant
-        if not self.tenant.startswith('http'):
-            self.tenant = 'https://%s' % self.tenant
+    @property
+    def base_url(self):
+        base_url = self.get_ssm_parameter(self.connection_info.get('DomainParameterName'))
+        base_url = base_url[:-1] if base_url.endswith('/') else base_url
+        if not base_url.startswith('http'):
+            base_url = 'https://{}'.format(base_url)
+        return base_url
 
-        self.client_id = self.get_ssm_parameter(c.get('ClientIdParameterName'))
-        self.client_secret = self.get_ssm_parameter(c.get('ClientSecretParameterName'))
-        self.access_token = get_access_token(self.tenant, self.client_id, self.client_secret)
-        self.headers = {'Authorization': 'Bearer %s' % self.access_token}
+    @property
+    def client_id(self):
+        return self.get_ssm_parameter(self.connection_info.get('ClientIdParameterName'))
+
+    @property
+    def client_secret(self):
+        return self.get_ssm_parameter(self.connection_info.get('ClientSecretParameterName'))
+
+    @property
+    def authz_url(self):
+        url = self.get_ssm_parameter(self.connection_info.get('AuthorizationExtensionUrlParameterName'))
+        return url[:-1] if url.endswith('/') else url
+
+    @property
+    def audience(self):
+        return '{}/api/v2/'.format(self.base_url)
+
+    @property
+    def access_token(self):
+        return get_access_token(self.base_url, self.client_id, self.client_secret, self.audience)
+
+    def add_authorization_header(self):
+        self.headers = {'Authorization': 'Bearer {}'.format(self.access_token)}
 
     def is_supported_resource_type(self):
         return self.resource_type.startswith('Custom::Auth0')
 
     @property
-    def uri(self):
+    def auth0_resource_name(self):
         """
-        converts the uri associated with the resource type specified.
-        Auth0Client -> /api/v2/clients
-        Auth0ClientGrant -> /api/v2/client-grants
-        Auth0Connection -> /api/v2/connections
+        converts the the custom resource name to the associated Auth0 resource
+        Auth0Client -> clients
+        Auth0ClientGrant -> client-grants
+        Auth0Connection -> connections
         ...
         """
-        name = self.resource_type.replace('Custom::Auth0', '')
-        return '/api/v2/%s%ss' % (name[0].lower(), re.sub(r'([A-Z])', lambda p: '-%s' % p.group(1).lower(), name[1:]))
+        name = re.sub(r'^Custom::Authz?0', '', self.resource_type)
+        return '{}{}s'.format(name[0].lower(), re.sub(r'([A-Z])', lambda p: '-{}'.format(p.group(1).lower()), name[1:]))
 
     @property
     def url(self):
-        return '%s%s' % (self.tenant, self.uri)
+        return '{}/api/v2/{}'.format(self.base_url, self.auth0_resource_name)
 
     def set_attributes_from_returned_value(self, value):
-        print json.dumps(value, indent=2)
         """
         callback to set additional attributes from returned value to be accessed through Fn::GetAtt.
         """
@@ -128,32 +158,41 @@ class Auth0Provider(ResourceProvider):
             self.physical_resource_id = value['client_id']
             self.set_attribute('Tenant', value['tenant'])
             self.set_attribute('ClientId', value['client_id'])
+        elif self.resource_type == 'Custom::Auth0User':
+            self.physical_resource_id = value['user_id']
         else:
             self.physical_resource_id = value['id']
 
     def create(self):
         if self.check_parameters_precondition():
-            self.get_token()
+            self.add_authorization_header()
             r = requests.post(self.url, headers=self.headers, json=self.get('Value'))
-            if r.status_code == 201:
+            if r.status_code == 200 or r.status_code == 201:
                 self.set_attributes_from_returned_value(r.json())
                 self.store_output_parameters(r.json(), overwrite=False)
             else:
                 self.physical_resource_id = 'could-not-create'
-                self.fail('status code %d, %s' % (r.status_code, r.text))
+                self.fail('create failed with code {}, {}'.format(r.status_code, r.text))
         else:
             self.physical_resource_id = 'could-not-create'
 
+    @property
+    def rest_update_operation(self):
+        return 'PATCH'
+
     def update(self):
-        self.get_token()
+        self.add_authorization_header()
         value = create_update_request(self.resource_type, self.get_old('Value'), self.get('Value'))
-        r = requests.patch('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers, json=value)
+        request = requests.Request(
+            self.rest_update_operation, '{}/{}'.format(self.url, self.physical_resource_id),
+            headers=self.headers, json=value).prepare()
+        r = (requests.Session()).send(request)
         if r.status_code == 200:
             self.set_attributes_from_returned_value(r.json())
             self.store_output_parameters(r.json(), overwrite=True)
             self.remove_deleted_parameters()
         else:
-            self.fail('status code %d, %s' % (r.status_code, r.text))
+            self.fail('status code from {} on {}, {}, {}'.format(r.operation, r.url, r.status_code, r.text))
 
     def check_parameters_precondition(self):
         names = list(map(lambda p: p['Name'], self.get('OutputParameters', [])))
@@ -161,9 +200,9 @@ class Auth0Provider(ResourceProvider):
             try:
                 r = self.ssm.describe_parameters(Filters=[{'Key': 'Name', 'Values': names}])
                 if len(r['Parameters']) > 0:
-                    self.fail('one or more of the parameters %s already exist' % names)
+                    self.fail('one or more of the parameters {} already exist'.format(names))
             except ClientError as e:
-                self.fail('failed to determine the presence of output parameters, %s' % str(e))
+                self.fail('failed to determine the presence of output parameters, {}'.format(str(e)))
         return self.status == 'SUCCESS'
 
     def remove_deleted_parameters(self):
@@ -179,12 +218,12 @@ class Auth0Provider(ResourceProvider):
 
     def delete(self):
         if self.physical_resource_id != 'could-not-create':
-            self.get_token()
-            r = requests.delete('%s/%s' % (self.url, self.physical_resource_id), headers=self.headers)
+            self.add_authorization_header()
+            r = requests.delete('{}/{}'.format(self.url, self.physical_resource_id), headers=self.headers)
             if r.status_code == 204:
                 self.delete_output_parameters()
             else:
-                self.fail('status code %d, %s' % (r.status_code, r.text))
+                self.fail('status code {}, {}'.format(r.status_code, r.text))
         else:
             pass  # object was not created in the first place
 
@@ -220,7 +259,7 @@ class Auth0Provider(ResourceProvider):
                 except ClientError as e:
                     self.fail(str(e))
             else:
-                self.fail('path %s did not result in a value' % path)
+                self.fail('path {} did not result in a value'.format(path))
 
 
 provider = Auth0Provider()

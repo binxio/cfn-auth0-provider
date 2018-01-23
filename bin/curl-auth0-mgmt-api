@@ -1,0 +1,56 @@
+#!/bin/bash
+#set -e -o pipefail
+
+PROGRAM=$0
+TOKEN=
+
+[[ -z $AUTH0_CLIENT_ID ]] && echo "ERROR:: AUTH0_CLIENT_ID not set." >&2 && exit 1
+[[ -z $AUTH0_CLIENT_SECRET ]] && echo "ERROR:: AUTH0_CLIENT_SECRET not set.">&2  && exit 1
+[[ -z $AUTH0_DOMAIN ]] && echo "ERROR:: AUTH0_DOMAIN not set." >&2 && exit 1
+[[ -z $AUTH0_AUTHZ_API ]] && echo "ERROR:: AUTH0_AUTHZ_API not set." >&2 && exit 1
+
+function main {
+	get_token
+	curl -H "authorization: Bearer $TOKEN" "$@"
+}
+
+function get_token {
+	local RESPONSE
+	if [[ $(basename $0) =~ .*-authz-.* ]] ; then
+		RESPONSE=$(get_authz_api_token)
+	else
+		RESPONSE=$(get_mgmt_api_token)
+	fi
+	TOKEN=$(jq -r .access_token <<< $RESPONSE)
+	([[ $TOKEN == null ]] || [[ -z $TOKEN ]]) && echo "ERROR: $RESPONSE" >&2 && exit 1
+}
+
+function get_mgmt_api_token {
+	curl -sS --request POST \
+	  --url $AUTH0_DOMAIN/oauth/token \
+	  --header 'content-type: application/json' \
+	  --data @- <<!
+{
+  "grant_type":"client_credentials",
+  "client_id": "$AUTH0_CLIENT_ID",
+  "client_secret": "$AUTH0_CLIENT_SECRET",
+  "audience": "$AUTH0_DOMAIN/api/v2/"
+}
+!
+}
+
+function get_authz_api_token {
+	curl -sS --request POST \
+	  --url $AUTH0_DOMAIN/oauth/token \
+	  --header 'content-type: application/json' \
+	  --data @- <<!
+{
+  "grant_type":"client_credentials",
+  "client_id": "$AUTH0_CLIENT_ID",
+  "client_secret": "$AUTH0_CLIENT_SECRET",
+  "audience": "urn:auth0-authz-api"
+}
+!
+}
+
+main "$@"

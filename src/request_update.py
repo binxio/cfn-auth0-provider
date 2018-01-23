@@ -6,7 +6,9 @@ list of non-updatable properties.
 non_updatable_properties = {
     'Custom::Auth0Client': ['jwt_configuration.secret_encoded'],
     'Custom::Auth0ResourceServer': ['identifier'],
-    'Custom::Auth0ClientGrant': ['client_id','audience']
+    'Custom::Auth0ClientGrant': ['client_id', 'audience'],
+    'Custom::Auth0Connection': ['name', 'strategy'],
+    'Custom::Auth0User': ['user_id']
 }
 
 
@@ -24,6 +26,7 @@ def remove_property_by_path(obj, path):
     """
     removes the property from the dictionary. A dot is used to navigate the object.
     """
+    part = None
     value = obj
     for part in path.split('.'):
         obj = value
@@ -46,10 +49,8 @@ def create_update_request(resource_type, old_request, update_request):
     if resource_type in non_updatable_properties:
         for path in non_updatable_properties[resource_type]:
             old_value = value = get_property_value_by_path(update_request, path)
-            print value
             if value is not None:
                 old_value = get_property_value_by_path(old_request, path)
-                print old_value
                 if old_value == value or old_value is None:
                     remove_property_by_path(update_request, path)
     return update_request

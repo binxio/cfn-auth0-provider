@@ -8,9 +8,11 @@ function main {
 	[[ -z $AUTH0_API_TOKEN ]] && echo "ERROR: environment variable AUTH0_API_TOKEN not set" >&2 && exit 1
 	[[ -z $AWS_DEFAULT_PROFILE ]] && echo "ERROR: environment variable AWS_DEFAULT_PROFILE not set" >&2 && exit 1
 	[[ -z $AWS_REGION ]] && echo "ERROR: environment variable AWS_REGION not set" >&2 && exit 1
+	[[ -z $AUTH0_AUTHZ_API ]] && echo "ERROR: environment variable AUTH0_AUTHZ_API not set" >&2 && exit 1
 
 	create_app
-	grant_app
+	grant_mngmt_api_access
+	grant_authz_api_access
 	store_credentials
 }
 
@@ -29,7 +31,7 @@ function create_app {
 	[[ -z $CLIENT_SECRET ]] && echo "ERROR: failed to obtain client secret" >&2 && exit 1
 }
 
-function grant_app {
+function grant_mngmt_api_access {
 	CLIENT_GRANT=$(cat <<!
 {
     "client_id": "$CLIENT_ID",
@@ -54,7 +56,11 @@ function grant_app {
       "read:rules",
       "update:rules",
       "delete:rules",
-      "create:rules"
+      "create:rules",
+      "read:users",
+      "update:users",
+      "delete:users",
+      "create:users"
     ]
 }
 !
@@ -67,10 +73,56 @@ function grant_app {
 	     https://$AUTH0_DOMAIN/api/v2/client-grants 
 }
 
-function store_credentials {
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/tenant --type SecureString --value=$AUTH0_DOMAIN --overwrite
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_id --type SecureString --value=$CLIENT_ID --overwrite
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
+function grant_authz_api_access {
+	CLIENT_GRANT=$(cat <<!
+{
+    "client_id": "$CLIENT_ID",
+    "audience": "urn:auth0-authz-api",
+    "scope": [
+      "read:users",
+      "read:applications",
+      "read:connections",
+      "read:groups",
+      "create:groups",
+      "update:groups",
+      "delete:groups",
+      "read:roles",
+      "create:roles",
+      "update:roles",
+      "delete:roles",
+      "read:permissions",
+      "create:permissions",
+      "update:permissions",
+      "delete:permissions",
+      "read:resource-server",
+      "create:resource-server",
+      "update:resource-server",
+      "delete:resource-server"
+    ]
 }
+!
+)
+	curl -sS \
+             -H "authorization: Bearer $AUTH0_API_TOKEN" \
+	     -H 'content-type: application/json' \
+	     -X POST \
+	     -d "$CLIENT_GRANT" \
+	     https://$AUTH0_DOMAIN/api/v2/client-grants 
+}
+function store_credentials {
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/domain --type SecureString --value=$AUTH0_DOMAIN --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_id --type String --value=$CLIENT_ID --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
+
+
+read -r -d '' VALUE <<!
+{
+        "Name": "/cfn-auth0-provider/authorization_url",
+        "Type": "String",
+        "Value": "${AUTH0_AUTHZ_API}",
+        "Overwrite": true
+}
+!
+   aws ssm --region $AWS_REGION put-parameter --cli-input-json "$VALUE"
 
 main "$@"

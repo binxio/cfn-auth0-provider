@@ -1,9 +1,10 @@
-import uuid
 import json
-from provider import handler
+import uuid
+
 import boto3
 from botocore.exceptions import ClientError
 
+from provider import handler
 
 sample_client = {
     "is_token_endpoint_ip_header_trusted": False,
@@ -59,7 +60,7 @@ def test_create():
     # update
     request = Request('Update', client, response['PhysicalResourceId'])
     response = handler(request, {})
-    print json.dumps(response, indent=2)
+    print(json.dumps(response, indent=2))
     assert response['Status'] == 'SUCCESS', response['Reason']
     assert 'PhysicalResourceId' in response
     assert 'ClientId' in response['Data']
