@@ -4,11 +4,14 @@ CLIENT_ID=
 CLIENT_SECRET=
 
 function main {
+	[[ -z $(which jq) ]] && echo "ERROR: jq is not installed">&2 && exit 1
 	[[ -z $AUTH0_DOMAIN ]] && echo "ERROR: environment variable AUTH0_DOMAIN not set" >&2 && exit 1
 	[[ -z $AUTH0_API_TOKEN ]] && echo "ERROR: environment variable AUTH0_API_TOKEN not set" >&2 && exit 1
 	[[ -z $AWS_DEFAULT_PROFILE ]] && echo "ERROR: environment variable AWS_DEFAULT_PROFILE not set" >&2 && exit 1
 	[[ -z $AWS_REGION ]] && echo "ERROR: environment variable AWS_REGION not set" >&2 && exit 1
 	[[ -z $AUTH0_AUTHZ_API ]] && echo "ERROR: environment variable AUTH0_AUTHZ_API not set" >&2 && exit 1
+
+	AUTH0_DOMAIN=${AUTH0_DOMAIN/https\:\/\//}
 
 	create_app
 	grant_mngmt_api_access
