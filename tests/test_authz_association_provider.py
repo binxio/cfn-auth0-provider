@@ -181,7 +181,6 @@ def test_all_stuff():
     assert response['Status'] == 'SUCCESS', response['Reason']
 
 
-
 class Request(dict):
 
     def __init__(self, request_type, resource_type, value, physical_resource_id=None):
