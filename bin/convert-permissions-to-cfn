@@ -1,4 +1,5 @@
-./bin/curl-auth0-authz-api -sS $AUTH0_AUTHZ_API/api/permissions | \
+#!/bin/bash
+curl-auth0-authz-api -sS $AUTH0_AUTHZ_API/api/permissions | \
 	jq '.permissions | 
 		map( del(._id) ) | 
 		map(.applicationId = { "Ref": .applicationId}) | 
