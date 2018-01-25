@@ -1,0 +1,9 @@
+./bin/curl-auth0-authz-api -sS $AUTH0_AUTHZ_API/api/permissions | \
+	jq '.permissions | 
+		map( del(._id) ) | 
+		map(.applicationId = { "Ref": .applicationId}) | 
+		map ({("" + .name): 
+				{Type: "Custom::Authz0Permission", 
+                                Properties: {Value: .},
+				ServiceToken: { "Fn::Sub" :  "arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:cfn-auth0-provider"}, 
+				}}) '
