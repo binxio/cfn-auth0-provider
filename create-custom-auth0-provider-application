@@ -112,12 +112,9 @@ function grant_authz_api_access {
 	     -d "$CLIENT_GRANT" \
 	     https://$AUTH0_DOMAIN/api/v2/client-grants 
 }
+
+
 function store_credentials {
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/domain --type SecureString --value=$AUTH0_DOMAIN --overwrite
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_id --type String --value=$CLIENT_ID --overwrite
-   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
-
-
 read -r -d '' VALUE <<!
 {
         "Name": "/cfn-auth0-provider/authorization_url",
@@ -126,6 +123,10 @@ read -r -d '' VALUE <<!
         "Overwrite": true
 }
 !
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/domain --type SecureString --value=$AUTH0_DOMAIN --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_id --type String --value=$CLIENT_ID --overwrite
+   aws ssm --region $AWS_REGION put-parameter --name /cfn-auth0-provider/client_secret --type SecureString --value=$CLIENT_SECRET --overwrite
    aws ssm --region $AWS_REGION put-parameter --cli-input-json "$VALUE"
+}
 
 main "$@"
