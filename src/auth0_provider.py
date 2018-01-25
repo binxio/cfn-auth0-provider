@@ -222,6 +222,10 @@ class Auth0Provider(ResourceProvider, object):
             r = requests.delete('{}/{}'.format(self.url, self.physical_resource_id), headers=self.headers)
             if r.status_code == 204:
                 self.delete_output_parameters()
+            elif r.status_code == 400:
+                error_msg = r.json()
+                if 'must be a valid GUID' in error_msg.get('message', ''):
+                    self.success(r.text)
             else:
                 self.fail('status code {}, {}'.format(r.status_code, r.text))
         else:

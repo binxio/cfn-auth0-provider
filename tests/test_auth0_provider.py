@@ -73,6 +73,12 @@ def test_create():
     assert response['Status'] == 'SUCCESS', response['Reason']
 
 
+    # delete incorrect physical resource id
+    request = Request('Delete', {}, 'devapi-consumeradmin-ManageOwnConsumersPermission-Y38O818GY2PV')
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
+
+
 def test_output_parameters():
     name = 'n%s' % uuid.uuid4()
     outputs = [

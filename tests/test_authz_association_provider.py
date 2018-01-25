@@ -15,7 +15,7 @@ def get_parameter(name):
 def test_all_stuff():
     # create client
     name = 'test-%s' % uuid.uuid4()
-    clinet = {'name': name}
+    client = {'name': name}
     request = Request('Create', 'Custom::Auth0Client', client)
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
