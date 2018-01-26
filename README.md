@@ -16,9 +16,6 @@ following environment variables:
 
 ```
 export AUTH0_API_TOKEN=
-export AUTH0_DOMAIN=<....auth0.com without https>
-export AWS_DEFAULT_PROFILE=<the profile you want>
-export AWS_REGION=<the region you want>
 ```
 
 ### Add the Authorization Extension in Auth0
@@ -37,7 +34,10 @@ export  AUTH0_AUTHZ_API=https://${AUTH0_DOMAIN/auth0.com/webtask.io}/adf6e2f2b84
 
 Now create the application, by typing:
 ```
-./create-custom-auth0-provider-application
+./create-custom-auth0-provider-application -d $AUTH0_DOMAIN \
+		-p $AWS_DEFAULT_PROFILE \
+		-r $AWS_DEFAULT_REGION  \
+		-u $AUTH0_AUTHZ_URL
 ```
 
 This script will create the application in Auth0 and store its credentials of this application in the
