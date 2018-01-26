@@ -1,24 +1,75 @@
 #!/bin/bash
 
+
 CLIENT_ID=
 CLIENT_SECRET=
+AWS_DEFAULT_PROFILE=
+AWS_DEFAULT_REGION=
+AWS_REGION=
+AUTH0_AUTHZ_API=
+
+function usage {
+	echo "Usage: $(basename $0) 
+		-d <auth0 domain>
+		-u <auth0 authorizatione extension url>
+		-p <aws profile>
+		-r <aws region>" >&2
+	echo "	$@" >&2
+	exit 1
+}
 
 function main {
-	[[ -z $(which jq) ]] && echo "ERROR: jq is not installed">&2 && exit 1
-	[[ -z $AUTH0_DOMAIN ]] && echo "ERROR: environment variable AUTH0_DOMAIN not set" >&2 && exit 1
-	[[ -z $AUTH0_API_TOKEN ]] && echo "ERROR: environment variable AUTH0_API_TOKEN not set" >&2 && exit 1
-	[[ -z $AWS_DEFAULT_PROFILE ]] && echo "ERROR: environment variable AWS_DEFAULT_PROFILE not set" >&2 && exit 1
-	[[ -z $AWS_REGION ]] && echo "ERROR: environment variable AWS_REGION not set" >&2 && exit 1
-	[[ -z $AUTH0_AUTHZ_API ]] && echo "ERROR: environment variable AUTH0_AUTHZ_API not set" >&2 && exit 1
+    while getopts ":d:t:u:p:r:" OPT; do
+	case "$OPT" in
+	    d)
+		AUTH0_DOMAIN=${OPTARG/https\:\/\//}
+		[[ -z $AUTH0_AUTHZ_API ]] && AUTH0_AUTHZ_API=https://${AUTH0_DOMAIN/.auth0.com/.webtask.io}/adf6e2f2b84784b57522e3b19dfc9201
+		;;
+	    u)
+		AUTH0_AUTHZ_API="$OPTARG"
+		;;
+	    p)
+		AWS_DEFAULT_PROFILE="$OPTARG"
+		;;
+	    r)
+		AWS_DEFAULT_REGION="$OPTARG"
+		AWS_REGION="$OPTARG"
+		;;
+	    *)
+	       usage
+		;;
+	esac
+    done
+    [[ -z $(which jq) ]] && usage "ERROR: jq is not installed">&2
+    [[ -z $AUTH0_DOMAIN ]] && usage "ERROR: Auth0 domain (-d) not set" >&2
+    [[ -z $AUTH0_API_TOKEN ]] && usage "ERROR: environment variable AUTH0_API_TOKEN not set" >&2
+    [[ -z $AWS_DEFAULT_PROFILE ]] && usage "ERROR: AWS profile (-p) is missing" >&2
+    [[ -z $AWS_REGION ]] && usage "ERROR:AWS Region (-r) is missing" >&2 
+    [[ -z $AUTH0_AUTHZ_API ]] && usage "ERROR: Authorization Extention URL is missing (-u)" >&2 
 
-	AUTH0_DOMAIN=${AUTH0_DOMAIN/https\:\/\//}
 
-	create_app
+    
+	get_or_create_app
 	grant_mngmt_api_access
 	grant_authz_api_access
 	store_credentials
 }
 
+function get_or_create_app {
+    get_app
+    if [[ -z $CLIENT_ID ]] ; then
+	create_app
+    fi
+}
+
+function get_app {
+	APP=$(curl -sS -H "authorization: bearer $AUTH0_API_TOKEN" \
+	     -H 'content-type: application/json' \
+	     -X GET  https://$AUTH0_DOMAIN/api/v2/clients  | jq ' .[] | select(.name == "Auth0 CloudFormation Provider") | .' )
+	CLIENT_ID=$(jq -r .client_id <<< $APP)
+	CLIENT_SECRET=$(jq -r .client_secret <<< $APP)
+	[[ -n $CLIENT_ID ]] && [[ -z $CLIENT_SECRET ]] && echo "ERROR: application Auth0 CloudFormation Provider exists, but cannot read secret" && exit 1
+}
 
 function create_app {
 	APP=$(curl -sS -H "authorization: bearer $AUTH0_API_TOKEN" \
@@ -44,6 +95,7 @@ function grant_mngmt_api_access {
       "create:client_grants",
       "delete:client_grants",
       "update:client_grants",
+      "read:client_keys",
       "read:clients",
       "update:clients",
       "delete:clients",
@@ -68,12 +120,7 @@ function grant_mngmt_api_access {
 }
 !
 )
-	curl -sS \
-             -H "authorization: Bearer $AUTH0_API_TOKEN" \
-	     -H 'content-type: application/json' \
-	     -X POST \
-	     -d "$CLIENT_GRANT" \
-	     https://$AUTH0_DOMAIN/api/v2/client-grants 
+	create_or_update_client_grant "$CLIENT_GRANT"
 }
 
 function grant_authz_api_access {
@@ -105,12 +152,31 @@ function grant_authz_api_access {
 }
 !
 )
-	curl -sS \
-             -H "authorization: Bearer $AUTH0_API_TOKEN" \
-	     -H 'content-type: application/json' \
-	     -X POST \
-	     -d "$CLIENT_GRANT" \
-	     https://$AUTH0_DOMAIN/api/v2/client-grants 
+	create_or_update_client_grant "$CLIENT_GRANT"
+}
+
+function create_or_update_client_grant {
+	GRANT="$@"
+	AUDIENCE=$(jq -r .audience <<< $GRANT)
+	CLNT_ID=$(jq -r .client_id <<< $GRANT)
+	GRANT_ID=$(curl -sS -H "authorization: Bearer $AUTH0_API_TOKEN" -X GET https://$AUTH0_DOMAIN/api/v2/client-grants | \
+		jq --arg client_id "$CLNT_ID" --arg audience "$AUDIENCE" -e -r '.[] | select(.client_id == $client_id and .audience == $audience) | .id')
+	if [[ -z $GRANT_ID ]] || [[ $GRANT_ID == "null" ]] ; then
+		curl -sS \
+		     -H "authorization: Bearer $AUTH0_API_TOKEN" \
+		     -H 'content-type: application/json' \
+		     -X POST \
+		     -d @- \
+		     https://$AUTH0_DOMAIN/api/v2/client-grants  <<< "$CLIENT_GRANT"
+	else
+		CLIENT_GRANT=$(jq 'del(.audience) | del(.client_id)' <<< $CLIENT_GRANT)
+		curl -sS \
+		     -H "authorization: Bearer $AUTH0_API_TOKEN" \
+		     -H 'content-type: application/json' \
+		     -X PATCH \
+		     -d @- \
+		     https://$AUTH0_DOMAIN/api/v2/client-grants/$GRANT_ID <<< "$CLIENT_GRANT"
+	fi
 }
 
 
