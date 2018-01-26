@@ -34,7 +34,7 @@ export  AUTH0_AUTHZ_API=https://${AUTH0_DOMAIN/auth0.com/webtask.io}/adf6e2f2b84
 
 Now create the application, by typing:
 ```
-./create-custom-auth0-provider-application -d $AUTH0_DOMAIN \
+./bin/create-custom-auth0-provider-application -d $AUTH0_DOMAIN \
 		-p $AWS_DEFAULT_PROFILE \
 		-r $AWS_DEFAULT_REGION  \
 		-u $AUTH0_AUTHZ_URL
