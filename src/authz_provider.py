@@ -16,6 +16,10 @@ log = logging.getLogger(name=__name__)
 class Authz0Provider(Auth0Provider, object):
     """
     Generic Cloudformation custom resource provider for Auth0 Authorization Extension resources.
+
+    Auth0 authorization has a different API, and uses PUT instead of PATCH to update objects.
+
+    In addition, posting a duplicate group name does work :-(
     """
 
     def __init__(self):
