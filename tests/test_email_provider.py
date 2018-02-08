@@ -24,6 +24,13 @@ def test_create():
     assert response['Status'] == 'SUCCESS', response['Reason']
     assert 'PhysicalResourceId' in response
 
+    request = Request('Create', value)
+    response = handler(request, {})
+    assert response['Status'] == 'FAILED', response['Reason']
+    assert 'PhysicalResourceId' in response
+    assert len(response['Reason']) > 0
+    assert response['PhysicalResourceId'] == 'could-not-create'
+
     # update
     value['credentials']['smtp_host'] = 'another-localhost'
     request = Request('Update', value, response['PhysicalResourceId'])
@@ -38,6 +45,10 @@ def test_create():
     response = handler(request, {})
     assert response['Status'] == 'SUCCESS', response['Reason']
 
+    # delete again
+    request = Request('Delete', {}, physical_resource_id)
+    response = handler(request, {})
+    assert response['Status'] == 'SUCCESS', response['Reason']
 
     # delete incorrect physical resource id
     request = Request('Delete', {}, 'devapi-consumeradmin-ManageOwnConsumersPermission-Y38O818GY2PV')
