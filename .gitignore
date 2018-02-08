@@ -1,4 +1,7 @@
+tests/.pytest_cache/
 .idea/workspace.xml
+.idea/tasks.xml
+.idea/dbnavigator.xml
 .noseids
 *.zip
 deps/

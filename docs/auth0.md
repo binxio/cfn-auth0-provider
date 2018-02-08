@@ -34,6 +34,7 @@ Supported Auth0 resource types are:
 - rules - [Custom::Auth0Rule](rule.md)
 - connections - [Custom::Auth0Connection](connection.md)
 - users - [Custom::Auth0User](user.md)
+- users - [Custom::Auth0EmailProvider](email-provider.md)
 
 ## Connection
 In order to be able to manage the Auth0 credentials, you need to create an Non-Interactive application
