@@ -15,7 +15,6 @@ To create a Auth0 resource using your your AWS CloudFormation template, use the 
         DomainParameterName: '/cfn-auth0-provider/domain'
         ClientIdParameterName: '/cfn-auth0-provider/client_id'
         ClientSecretParameterName: '/cfn-auth0-provider/client_secret'
-        ClientSecretParameterName: '/cfn-auth0-provider/client_secret'
 
       OutputParameters:
         - Name: <parameter store parameter name>
