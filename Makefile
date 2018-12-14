@@ -57,7 +57,7 @@ do-push: deploy
 
 do-build: target/$(NAME)-$(VERSION).zip
 
-target/$(NAME)-$(VERSION).zip: src/*.py venv requirements.txt
+target/$(NAME)-$(VERSION).zip: src/*.py requirements.txt
 	mkdir -p target
 	docker build --build-arg ZIPFILE=$(NAME)-$(VERSION).zip -t $(NAME)-lambda:$(VERSION) -f Dockerfile.lambda . && \
 		ID=$$(docker create $(NAME)-lambda:$(VERSION) /bin/true) && \
