@@ -19,7 +19,7 @@ help:
 	@echo 'make demo               - deploys the demo cloudformation stack.'
 	@echo 'make delete-demo        - deletes the demo cloudformation stack.'
 
-deploy: 
+deploy: target/$(NAME)-$(VERSION).zip
 	aws s3 --region $(AWS_REGION) \
 		cp target/$(NAME)-$(VERSION).zip \
 		s3://$(S3_BUCKET_PREFIX)-$(AWS_REGION)/lambdas/$(NAME)-$(VERSION).zip 
@@ -55,16 +55,15 @@ deploy-all-regions: deploy
 
 do-push: deploy
 
-do-build: local-build
+do-build: target/$(NAME)-$(VERSION).zip
 
-local-build: src/*.py venv requirements.txt
-	mkdir -p target/content 
-	docker run -u $$(id -u):$$(id -g) -v $(PWD)/target/content:/venv python:3.6 pip install --quiet -t /venv $$(<requirements.txt)
-	cp -r src/* target/content
-	find target/content -type d | xargs  chmod ugo+rx 
-	find target/content -type f | xargs  chmod ugo+r 
-	cd target/content && zip --quiet -9r ../../target/$(NAME)-$(VERSION).zip  .
-	chmod ugo+r target/$(NAME)-$(VERSION).zip
+target/$(NAME)-$(VERSION).zip: src/*.py venv requirements.txt
+	mkdir -p target
+	docker build --build-arg ZIPFILE=$(NAME)-$(VERSION).zip -t $(NAME)-lambda:$(VERSION) -f Dockerfile.lambda . && \
+		ID=$$(docker create $(NAME)-lambda:$(VERSION) /bin/true) && \
+		docker export $$ID | (cd target && tar -xvf - $(NAME)-$(VERSION).zip) && \
+		docker rm -f $$ID && \
+		chmod ugo+r target/$(NAME)-$(VERSION).zip
 
 venv: requirements.txt
 	virtualenv -p python3 venv  && \
