@@ -27,7 +27,7 @@ export AUTH0_AUTHZ_API=<url of the authorization extension API>
 
 At the moment of writing, the URL for the installation Authorization Extension version 2.4 is:
 ```
-export  AUTH0_AUTHZ_API=https://${AUTH0_DOMAIN/auth0.com/webtask.io}/adf6e2f2b84784b57522e3b19dfc9201
+export  AUTH0_AUTHZ_API=https://${AUTH0_DOMAIN}/auth0.com/webtask.io/adf6e2f2b84784b57522e3b19dfc9201
 ```
 
 ### 
