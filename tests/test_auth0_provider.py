@@ -1,5 +1,6 @@
 import json
 import uuid
+import time
 
 import boto3
 from botocore.exceptions import ClientError
@@ -117,7 +118,7 @@ def test_output_parameters():
 
     # create second time
     error_response = handler(request, {})
-    assert error_response['Status'] == 'FAILED', response['Reason']
+    assert error_response['Status'] == 'FAILED', error_response['Reason']
     assert error_response['Reason'].startswith('one or more of the parameters')
 
     # update

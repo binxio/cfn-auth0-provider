@@ -32,7 +32,7 @@ def test_create():
     assert response['PhysicalResourceId'] == 'could-not-create'
 
     # update
-    value['credentials']['smtp_host'] = 'another-localhost'
+    value['credentials']['smtp_host'] = 'email-smtp.eu-west-1.amazonaws.com'
     request = Request('Update', value, response['PhysicalResourceId'])
     response = handler(request, {})
     print(json.dumps(response, indent=2))
