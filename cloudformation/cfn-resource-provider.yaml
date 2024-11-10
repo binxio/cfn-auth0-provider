@@ -13,7 +13,7 @@ Resources:
       Description: Auth0 Custom CloudFormation Provider
       PackageType: Image
       Code:
-        ImageUri: 463637877380.dkr.ecr.eu-central-1.amazonaws.com/xebia/cfn-auth0-provider:1.0.1-808ccd0
+        ImageUri: 463637877380.dkr.ecr.eu-central-1.amazonaws.com/xebia/cfn-auth0-provider:2.0.0
       FunctionName: cfn-auth0-provider
       MemorySize: 128
       Timeout: 10
