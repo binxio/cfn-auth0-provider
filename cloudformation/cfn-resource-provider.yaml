@@ -4,12 +4,6 @@ Parameters:
   DefaultSecurityGroup:
     Type: String
     Default: ''
-  S3BucketPrefix:
-    Type: String
-    Default: ''
-  CFNCustomProviderZipFileName:
-    Type: String
-    Default: lambdas/cfn-auth0-provider-1.0.1.zip
 Resources:
   CFNCustomProvider:
     Type: AWS::Lambda::Function
@@ -17,15 +11,13 @@ Resources:
       - LambdaRole
     Properties:
       Description: Auth0 Custom CloudFormation Provider
+      PackageType: Image
       Code:
-        S3Bucket: !Sub '${S3BucketPrefix}-${AWS::Region}'
-        S3Key: !Ref 'CFNCustomProviderZipFileName'
+        ImageUri: 463637877380.dkr.ecr.eu-central-1.amazonaws.com/xebia/cfn-auth0-provider:1.0.1-808ccd0
       FunctionName: cfn-auth0-provider
-      Handler: provider.handler
       MemorySize: 128
       Timeout: 10
       Role: !GetAtt 'LambdaRole.Arn'
-      Runtime: python3.9
   LambdaPolicy:
     Type: AWS::IAM::Policy
     DependsOn:

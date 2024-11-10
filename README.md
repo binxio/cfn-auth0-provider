@@ -58,5 +58,5 @@ aws cloudformation create-stack \
 aws cloudformation wait stack-create-complete  --stack-name cfn-auth0-provider
 ```
 
-This CloudFormation template will use our pre-packaged provider from `s3://binxio-public/lambdas/cfn-auth0-provider-latest.zip`.
+This CloudFormation template will use our pre-packaged provider from `463637877380.dkr.ecr.eu-central-1.amazonaws.com/xebia/cfn-auth0-provider:0.0.0`.
 
